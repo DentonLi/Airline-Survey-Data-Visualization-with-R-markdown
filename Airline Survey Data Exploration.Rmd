@@ -1,0 +1,181 @@
+---
+title: "Airline Survey Data Visualization"
+author: "Denton(Ziyue) Li"
+date: "18/02/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Goal of the project:
+Find out factors that affects the overall satisfaction of airline passengers to better reallocate resources to make customers happy.
+
+Workflow:
+Audit and clean the data
+Use visualization to find out potential factors that could affect the possibility of airline passengers' being happy.
+Test the significance of those factors in a logistic regression
+Build a ML algorithm to predict if a customer is satisfied
+
+This notebook will achieve the first two part of the workflow
+```{r Library import and data auditing}
+# Load the data and import library
+library(tidyverse)
+df=read.csv("train.csv")
+# Take a look at the summary and structure of data
+summary(df)
+str(df)
+# Take a look at the first few row of the data
+head(df)
+# Check for missing values in each column
+sapply(df, function(x) sum(is.na(x)))
+
+# Define a function to achieve that quicker next time
+audit = function(df){
+print(summary(df))
+print(str(df))
+print(sapply(df, function(x) sum(is.na(x))))
+print(head(df))
+}
+# Try the function
+audit(df)
+
+```
+
+
+
+```{r Preprocessing}
+# As the proportion of missing values is small, we can drop them
+df=na.omit(df)
+```
+
+
+```{r Visualization Part 1 Distribution of customers with different satisfaction level}
+
+ggplot(df, aes(satisfaction))+
+  geom_bar(stat="count", width = 0.3, fill="lightgreen")+
+  labs(x="Satisfaction",
+       y="Frequency", 
+       title="Satisfaction Distribution")+ 
+  theme_bw()+
+  theme(plot.title = element_text(size=15),axis.text.x= element_text(size=12),
+        axis.text.y= element_text(size=15), axis.title=element_text(size=12))
+```
+
+```{r Visualization Part 2 Association between age and satisfaction}
+p=ggplot(df, aes(Age,fill=satisfaction))+
+  geom_bar(stat="count", position='dodge',width=0.3)+  
+  labs(x="Age",
+       y="Frequency", 
+       title="Satisfaction Distribution According to Age")+ 
+  theme_bw()+
+  theme(plot.title = element_text(size=22),axis.text.x= element_text(size=15,angle=90),
+        axis.text.y= element_text(size=15), axis.title=element_text(size=18))
+
+p+theme(legend.position = c(0.85,0.85))
+```
+The graph shows that Customers aged below 22 and above 61 are "difficult customers" who are more likely to be neutral or dissatisfied. Customers aged between 23 and 38 are normal customers in terms of satisfaction. Customers aged between 39 and 60 are relatively satisfied.
+
+
+```{r Visualization Part 3 Association among class, gender, and satisfaction}
+ggplot(df, aes(Class))+
+  geom_bar(stat="count", position = 'dodge',width = 0.5,aes(fill=satisfaction))+
+  labs(x="Class",
+       y="Count", 
+       title="Satisfaction Distribution")+ 
+  facet_wrap(~Gender)+
+  theme_bw()+
+  theme(plot.title = element_text(size=22),axis.text.x= element_text(size=15,angle=90),
+        axis.text.y= element_text(size=15), axis.title=element_text(size=18))
+```
+```{r Visualization Part 4 Association among class, customer type, and satisfaction}
+ggplot(df, aes(Class))+
+  geom_bar(stat="count", position = 'dodge',width = 0.5,aes(fill=satisfaction))+
+  labs(x="Class",
+       y="Count", 
+       title="Satisfaction Distribution")+ 
+  facet_wrap(~Customer.Type)+
+  theme_bw()+
+  theme(plot.title = element_text(size=22),axis.text.x= element_text(size=15,angle=90),
+        axis.text.y= element_text(size=15), axis.title=element_text(size=18))
+```
+```{r Visualization Part 5 Association among class, Type of Travel, and satisfaction}
+ggplot(df, aes(Class))+
+  geom_bar(stat="count", position = 'dodge',width = 0.5,aes(fill=satisfaction))+
+  labs(x="Class",
+       y="Count", 
+       title="Satisfaction Distribution")+ 
+  facet_wrap(~Type.of.Travel)+
+  theme_bw()+
+  theme(plot.title = element_text(size=22),axis.text.x= element_text(size=15,angle=90),
+        axis.text.y= element_text(size=15), axis.title=element_text(size=18))
+```
+From the graph, we can see that:
+
+Gender does not seem to distinguish satisfied customers
+Loyal Customers seem to be more likely to be satisfied
+Most Happy customers are from the Business Class
+Business Traveller are more likely to be happy
+```{r Visualization Part 6 Association among class, delay time, and satisfaction}
+# Define total delay
+df$Total.Delay = df$Departure.Arrival.time.convenient+df$Arrival.Delay.in.Minutes
+# Plot the graph
+ggplot(df, aes(Class, Total.Delay)) + 
+  geom_boxplot(aes(fill=satisfaction)) +
+  ylim(0,200)+
+  labs(x="Class",
+       y="Departure Delay in Minutes", 
+       fill="Satisfaction",
+       title="Distribution of Satisfaction")+  
+  theme_bw()+
+  theme(plot.title = element_text(size=22)
+        ,axis.text.x= element_text(size=15),
+        axis.text.y= element_text(size=15),
+        axis.title=element_text(size=18))
+```
+
+
+
+```{r Visualization Part 7 Association among class, rating scales, and satisfaction}
+for (i in colnames(df)[9:22]){print(ggplot(df, aes(df[[i]],fill=satisfaction))+
+  geom_bar(stat="count", position='dodge',width=0.3)+  
+  labs(x=i,
+       y="Frequency", 
+       title="Satisfaction Distribution")+ 
+  facet_wrap(~Class)+
+  theme_bw()+
+  theme(plot.title = element_text(size=22),axis.text.x= element_text(size=15,angle=90),
+        axis.text.y= element_text(size=15), axis.title=element_text(size=18))+
+  theme(legend.position = c(0.85,0.83)))}
+```
+
+Almost high scores of all items associate with higher satisfaction level, except for departure/arrival time convenience.
+
+Among all the items, these associate more with higher satisfaction level of business class passengers than other classes:
+
+1 Seat comfort 2 On-board service 3 Leg room service 4 Baggages handling 5 Checkin service
+
+Summary of findings
+For personal passengers, flight distance seem to have no association with satisfaction.
+
+For business passengers, flight distance seems to associate with a negative impact on satisfaction level if not business class; but satisfied passengers seem to enjoy long flight if they are at business class.
+
+Both arrival delay and departure delay negatively associate with satisfaction level.
+
+Gender does not seem to distinguish satisfied customers.
+
+Loyal Customers seem to be more likely to be satisfied.
+
+Most Happy customers are from the Business Class.
+
+Business Traveller are more likely to be satisfied.
+
+Almost high scores of all items associate with higher satisfaction level, except for departure/arrival time convenience.
+
+The graph shows that Customers aged below 22 and above 61 are "difficult customers" who are more likely to be neutral or dissatisfied. Customers aged between 23 and 38 are normal customers in terms of satisfaction. Customers aged between 39 and 60 are relatively satisfied.
+
+Among all the items, these associate more with higher satisfaction level of business class passengers than other classes:
+
+Seat comfort; On-board service; Leg room service; Baggages handling; Checkin service;
+
